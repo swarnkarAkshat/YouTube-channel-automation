@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MonitorPlay, Send, Target, LayoutDashboard, Settings, Loader2, Sparkles, AlertCircle, Mail, Lightbulb, PlayCircle, Calendar, Video, Hash } from 'lucide-react';
+import { MonitorPlay, Send, Target, Loader2, Sparkles, AlertCircle, Mail, Lightbulb, PlayCircle, Calendar, Video, Hash } from 'lucide-react';
 
 const WEBHOOK_URL = "https://n8n.ianman.com/webhook/youtube-channel-automation";
 
