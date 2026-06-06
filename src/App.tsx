@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { MonitorPlay, Send, Target, Loader2, Sparkles, AlertCircle, Mail, Lightbulb, PlayCircle, Calendar, Video, Hash } from 'lucide-react';
 
-const WEBHOOK_URL = "https://n8n.ianman.com/webhook-test/youtube-channel-automation";
+const WEBHOOK_URL = "https://n8n.ianman.com/webhook/youtube-channel-automation";
 
 const renderOutput = (data: any) => {
   let strategy = null;
@@ -13,36 +13,43 @@ const renderOutput = (data: any) => {
     }
   }
 
-  if (strategy && strategy.recommended_channel_name) {
-    const videoIdeas = Array.isArray(strategy["5_youtube_video_ideas"]) 
-      ? strategy["5_youtube_video_ideas"] 
-      : Object.values(strategy["5_youtube_video_ideas"] || {});
-      
-    const seoKeywords = Array.isArray(strategy.seo_keywords)
-      ? strategy.seo_keywords
-      : Object.values(strategy.seo_keywords || {});
+  const channelName = strategy?.recommended_channel_name || strategy?.recommendedChannelName;
+  if (strategy && channelName) {
+    const videoIdeasRaw = strategy["5_youtube_video_ideas"] || strategy["5_YouTube_Video_Ideas"] || {};
+    const videoIdeas = Array.isArray(videoIdeasRaw)
+      ? videoIdeasRaw
+      : Object.values(videoIdeasRaw);
+
+    const seoKeywordsRaw = strategy.seo_keywords || strategy.seoKeywords || {};
+    const seoKeywords = Array.isArray(seoKeywordsRaw)
+      ? seoKeywordsRaw
+      : Object.values(seoKeywordsRaw);
 
     const schedule = strategy.recommended_posting_schedule || {};
-    
+
     // Resolve Best Day(s)
     let bestDays = schedule.day || schedule.best_publish_day;
     if (!bestDays && schedule.days) {
-      bestDays = Array.isArray(schedule.days) 
-        ? schedule.days.join(', ') 
+      bestDays = Array.isArray(schedule.days)
+        ? schedule.days.join(', ')
         : Object.values(schedule.days).join(', ');
     }
 
     // Resolve Time
-    const bestTime = schedule.time || schedule.best_publish_time_utc;
+    const bestTime = schedule.time || schedule.best_publish_time_utc || schedule.time_utc;
 
     // Resolve Format
     const formatNote = schedule.format || schedule.schedule_note;
 
     // Resolve Content Rotation / Mix
-    const contentMixRaw = strategy.content_rotation || strategy.content_mix || schedule.content_rotation || schedule.content_mix;
-    const contentMix = contentMixRaw 
+    const contentMixRaw = strategy.content_rotation || strategy.content_mix || strategy.content_pillars || schedule.content_rotation || schedule.content_mix || schedule.content_pillars;
+    const contentMix = contentMixRaw
       ? (Array.isArray(contentMixRaw) ? contentMixRaw : Object.values(contentMixRaw))
       : null;
+
+    const channelDesc = strategy.channel_description || strategy.channelDescription;
+    const sampleTitle = strategy.sample_video_title || strategy.sampleVideoTitle;
+    const sampleDesc = strategy.sample_video_description || strategy.sampleVideoDescription;
 
     return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
@@ -53,8 +60,8 @@ const renderOutput = (data: any) => {
               <MonitorPlay className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-slate-900">{strategy.recommended_channel_name}</h3>
-              <p className="mt-2 text-sm text-slate-600 leading-relaxed">{strategy.channel_description}</p>
+              <h3 className="text-xl font-bold text-slate-900">{channelName}</h3>
+              <p className="mt-2 text-sm text-slate-600 leading-relaxed">{channelDesc}</p>
             </div>
           </div>
         </div>
@@ -87,14 +94,14 @@ const renderOutput = (data: any) => {
                 <span className="text-sm text-slate-500">Frequency</span>
                 <span className="text-sm font-semibold text-slate-800">{schedule.frequency || 'N/A'}</span>
               </div>
-              
+
               {bestDays && (
                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
                   <span className="text-sm text-slate-500">Best Day(s)</span>
                   <span className="text-sm font-semibold text-slate-800 text-right">{bestDays}</span>
                 </div>
               )}
-              
+
               {bestTime && (
                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
                   <span className="text-sm text-slate-500">Best Time</span>
@@ -107,7 +114,7 @@ const renderOutput = (data: any) => {
                   {formatNote}
                 </p>
               )}
-              
+
               {contentMix && (
                 <div className="mt-4 pt-4 border-t border-slate-100">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Content Mix / Rotation</span>
@@ -132,8 +139,8 @@ const renderOutput = (data: any) => {
             Sample Video Concept
           </h4>
           <div className="bg-white border border-slate-200 rounded-lg p-5">
-            <h5 className="font-semibold text-slate-900 mb-2">{strategy.sample_video_title}</h5>
-            <p className="text-sm text-slate-600 whitespace-pre-wrap">{strategy.sample_video_description}</p>
+            <h5 className="font-semibold text-slate-900 mb-2">{sampleTitle}</h5>
+            <p className="text-sm text-slate-600 whitespace-pre-wrap">{sampleDesc}</p>
           </div>
         </div>
 
@@ -270,11 +277,11 @@ function App() {
                       onChange={handleChange}
                       className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-sm bg-white"
                     >
-                      <option value="" disabled>Select a business website</option>
-                      <option value="https://www.essnps.com">https://www.essnps.com</option>
-                      <option value="https://www.enwps.com">https://www.enwps.com</option>
-                      <option value="https://www.eaxprts.com">https://www.eaxprts.com</option>
-                      <option value="https://www.essgeeks.com">https://www.essgeeks.com</option>
+                      <option value="" disabled>Select a company</option>
+                      <option value="https://www.essnps.com">ESSNPS</option>
+                      <option value="https://www.enwps.com">ENWPS</option>
+                      <option value="https://www.eaxprts.com">EAXPRTS</option>
+                      <option value="https://www.essgeeks.com">ESSGEEKS</option>
                     </select>
                   </div>
 
