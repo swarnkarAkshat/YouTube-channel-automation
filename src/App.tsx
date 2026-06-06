@@ -1,11 +1,49 @@
 import { useState } from 'react';
 import { MonitorPlay, Send, Target, Loader2, Sparkles, AlertCircle, Mail, Lightbulb, PlayCircle, Calendar, Video, Hash } from 'lucide-react';
 
-const WEBHOOK_URL = "https://n8n.ianman.com/webhook/youtube-channel-automation";
+const WEBHOOK_URL = "https://n8n.ianman.com/webhook-test/youtube-channel-automation";
 
 const renderOutput = (data: any) => {
-  if (Array.isArray(data) && data[0]?.strategy) {
-    const strategy = data[0].strategy;
+  let strategy = null;
+  if (data && typeof data === 'object') {
+    if (Array.isArray(data)) {
+      strategy = data[0]?.strategy || data[0];
+    } else {
+      strategy = data?.strategy || data;
+    }
+  }
+
+  if (strategy && strategy.recommended_channel_name) {
+    const videoIdeas = Array.isArray(strategy["5_youtube_video_ideas"]) 
+      ? strategy["5_youtube_video_ideas"] 
+      : Object.values(strategy["5_youtube_video_ideas"] || {});
+      
+    const seoKeywords = Array.isArray(strategy.seo_keywords)
+      ? strategy.seo_keywords
+      : Object.values(strategy.seo_keywords || {});
+
+    const schedule = strategy.recommended_posting_schedule || {};
+    
+    // Resolve Best Day(s)
+    let bestDays = schedule.day || schedule.best_publish_day;
+    if (!bestDays && schedule.days) {
+      bestDays = Array.isArray(schedule.days) 
+        ? schedule.days.join(', ') 
+        : Object.values(schedule.days).join(', ');
+    }
+
+    // Resolve Time
+    const bestTime = schedule.time || schedule.best_publish_time_utc;
+
+    // Resolve Format
+    const formatNote = schedule.format || schedule.schedule_note;
+
+    // Resolve Content Rotation / Mix
+    const contentMixRaw = strategy.content_rotation || strategy.content_mix || schedule.content_rotation || schedule.content_mix;
+    const contentMix = contentMixRaw 
+      ? (Array.isArray(contentMixRaw) ? contentMixRaw : Object.values(contentMixRaw))
+      : null;
+
     return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
         {/* Header Section */}
@@ -29,10 +67,10 @@ const renderOutput = (data: any) => {
               Video Ideas
             </h4>
             <ul className="space-y-3">
-              {strategy["5_youtube_video_ideas"]?.map((idea: string, idx: number) => (
+              {videoIdeas.map((idea: any, idx: number) => (
                 <li key={idx} className="flex items-start text-sm text-slate-700">
                   <PlayCircle className="w-4 h-4 mr-3 mt-0.5 text-slate-400 shrink-0" />
-                  <span>{idea}</span>
+                  <span>{String(idea)}</span>
                 </li>
               ))}
             </ul>
@@ -47,19 +85,42 @@ const renderOutput = (data: any) => {
             <div className="space-y-4">
               <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="text-sm text-slate-500">Frequency</span>
-                <span className="text-sm font-semibold text-slate-800">{strategy.recommended_posting_schedule?.frequency}</span>
+                <span className="text-sm font-semibold text-slate-800">{schedule.frequency || 'N/A'}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
-                <span className="text-sm text-slate-500">Best Day</span>
-                <span className="text-sm font-semibold text-slate-800">{strategy.recommended_posting_schedule?.best_publish_day}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
-                <span className="text-sm text-slate-500">Best Time</span>
-                <span className="text-sm font-semibold text-slate-800">{strategy.recommended_posting_schedule?.best_publish_time_utc}</span>
-              </div>
-              <p className="text-xs text-slate-500 italic mt-2">
-                {strategy.recommended_posting_schedule?.schedule_note}
-              </p>
+              
+              {bestDays && (
+                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+                  <span className="text-sm text-slate-500">Best Day(s)</span>
+                  <span className="text-sm font-semibold text-slate-800 text-right">{bestDays}</span>
+                </div>
+              )}
+              
+              {bestTime && (
+                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+                  <span className="text-sm text-slate-500">Best Time</span>
+                  <span className="text-sm font-semibold text-slate-800">{bestTime}</span>
+                </div>
+              )}
+
+              {formatNote && (
+                <p className="text-xs text-slate-500 italic mt-2">
+                  {formatNote}
+                </p>
+              )}
+              
+              {contentMix && (
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Content Mix / Rotation</span>
+                  <ul className="space-y-1.5">
+                    {contentMix.map((item: any, idx: number) => (
+                      <li key={idx} className="text-xs text-slate-600 flex items-start">
+                        <span className="w-1 h-1 rounded-full bg-blue-400 mt-1.5 mr-2 shrink-0" />
+                        <span>{String(item)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -83,9 +144,9 @@ const renderOutput = (data: any) => {
             SEO Keywords
           </h4>
           <div className="flex flex-wrap gap-2">
-            {strategy.seo_keywords?.map((kw: string, idx: number) => (
+            {seoKeywords.map((kw: any, idx: number) => (
               <span key={idx} className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-full border border-slate-200">
-                {kw}
+                {String(kw)}
               </span>
             ))}
           </div>
@@ -202,15 +263,19 @@ function App() {
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Business Name</label>
-                    <input
-                      type="text"
+                    <select
                       name="businessName"
                       required
                       value={formData.businessName}
                       onChange={handleChange}
-                      placeholder="e.g. ESSNPS Corp"
-                      className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-sm placeholder:text-slate-400"
-                    />
+                      className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-sm bg-white"
+                    >
+                      <option value="" disabled>Select a business website</option>
+                      <option value="https://www.essnps.com">https://www.essnps.com</option>
+                      <option value="https://www.enwps.com">https://www.enwps.com</option>
+                      <option value="https://www.eaxprts.com">https://www.eaxprts.com</option>
+                      <option value="https://www.essgeeks.com">https://www.essgeeks.com</option>
+                    </select>
                   </div>
 
                   <div>
@@ -223,10 +288,14 @@ function App() {
                       className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-sm bg-white"
                     >
                       <option value="" disabled>Select an industry</option>
-                      <option value="Compliance &amp; Risk Management">Compliance &amp; Risk Management</option>
-                      <option value="Technology">Technology</option>
-                      <option value="AI Solutions">AI Solutions</option>
-                      <option value="Business Services">Business Services</option>
+                      <option value="Heavy Industries">Heavy Industries</option>
+                      <option value="Discrete Manufacturing">Discrete Manufacturing</option>
+                      <option value="Oil & Gas">Oil & Gas</option>
+                      <option value="Melting, Heating & Welding Industry">Melting, Heating & Welding Industry</option>
+                      <option value="Pipe Manufacturing, Cutting/Shearing">Pipe Manufacturing, Cutting/Shearing</option>
+                      <option value="Material Handling">Material Handling</option>
+                      <option value="Food & Pharma">Food & Pharma</option>
+                      <option value="Special Purpose Machinery">Special Purpose Machinery</option>
                     </select>
                   </div>
 
@@ -237,7 +306,7 @@ function App() {
                       required
                       value={formData.targetAudience}
                       onChange={handleChange}
-                      placeholder="Describe your target audience..."
+                      placeholder="e.g. Global manufacturing companies, EPC contractors, and industrial enterprises looking for reliable sourcing, procurement, and detail engineering services."
                       rows={3}
                       className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-sm resize-none placeholder:text-slate-400"
                     />
@@ -253,10 +322,11 @@ function App() {
                       className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-sm bg-white"
                     >
                       <option value="" disabled>Select a goal</option>
-                      <option value="Brand Awareness">Brand Awareness</option>
-                      <option value="Lead Generation">Lead Generation</option>
-                      <option value="Website Traffic">Website Traffic</option>
-                      <option value="Thought Leadership">Thought Leadership</option>
+                      <option value="Supply Chain Optimization">Supply Chain Optimization</option>
+                      <option value="Cost Reduction">Cost Reduction</option>
+                      <option value="Improved Quality">Improved Quality</option>
+                      <option value="Efficient Resource Management">Efficient Resource Management</option>
+                      <option value="Sustainable Sourcing">Sustainable Sourcing</option>
                     </select>
                   </div>
 
