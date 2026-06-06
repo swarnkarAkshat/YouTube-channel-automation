@@ -3,53 +3,50 @@ import { MonitorPlay, Send, Target, Loader2, Sparkles, AlertCircle, Mail, Lightb
 
 const WEBHOOK_URL = "https://n8n.ianman.com/webhook/youtube-channel-automation";
 
+const getFuzzyKey = (obj: any, keywords: string[]) => {
+  if (!obj || typeof obj !== 'object') return undefined;
+  const keys = Object.keys(obj);
+  const matchedKey = keys.find(k => {
+    const lowerK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return keywords.every(kw => lowerK.includes(kw.toLowerCase()));
+  });
+  return matchedKey ? obj[matchedKey] : undefined;
+};
+
 const renderOutput = (data: any) => {
   let strategy = null;
   if (data && typeof data === 'object') {
     if (Array.isArray(data)) {
-      strategy = data[0]?.strategy || data[0];
+      strategy = getFuzzyKey(data[0], ['strategy']) || data[0];
     } else {
-      strategy = data?.strategy || data;
+      strategy = getFuzzyKey(data, ['strategy']) || data;
     }
   }
 
-  const channelName = strategy?.recommended_channel_name || strategy?.recommendedChannelName;
+  const channelName = getFuzzyKey(strategy, ['channel', 'name']);
   if (strategy && channelName) {
-    const videoIdeasRaw = strategy["5_youtube_video_ideas"] || strategy["5_YouTube_Video_Ideas"] || {};
-    const videoIdeas = Array.isArray(videoIdeasRaw)
-      ? videoIdeasRaw
-      : Object.values(videoIdeasRaw);
+    const channelDesc = getFuzzyKey(strategy, ['channel', 'desc']);
+    
+    const videoIdeasRaw = getFuzzyKey(strategy, ['video', 'idea']) || {};
+    const videoIdeas = Array.isArray(videoIdeasRaw) ? videoIdeasRaw : Object.values(videoIdeasRaw);
+    
+    const seoKeywordsRaw = getFuzzyKey(strategy, ['seo', 'keyword']) || {};
+    const seoKeywords = Array.isArray(seoKeywordsRaw) ? seoKeywordsRaw : Object.values(seoKeywordsRaw);
 
-    const seoKeywordsRaw = strategy.seo_keywords || strategy.seoKeywords || {};
-    const seoKeywords = Array.isArray(seoKeywordsRaw)
-      ? seoKeywordsRaw
-      : Object.values(seoKeywordsRaw);
+    const schedule = getFuzzyKey(strategy, ['schedule']) || {};
+    
+    const bestDaysRaw = getFuzzyKey(schedule, ['day']);
+    const bestDays = Array.isArray(bestDaysRaw) ? bestDaysRaw.join(', ') : (typeof bestDaysRaw === 'object' && bestDaysRaw ? Object.values(bestDaysRaw).join(', ') : bestDaysRaw);
+    
+    const bestTime = getFuzzyKey(schedule, ['time']);
+    const freq = getFuzzyKey(schedule, ['frequenc']);
+    const formatNote = getFuzzyKey(schedule, ['format']) || getFuzzyKey(schedule, ['note']);
+    
+    const contentMixRaw = getFuzzyKey(strategy, ['content', 'mix']) || getFuzzyKey(strategy, ['content', 'rotat']) || getFuzzyKey(strategy, ['content', 'pillar']) || getFuzzyKey(schedule, ['content']);
+    const contentMix = contentMixRaw ? (Array.isArray(contentMixRaw) ? contentMixRaw : Object.values(contentMixRaw)) : null;
 
-    const schedule = strategy.recommended_posting_schedule || {};
-
-    // Resolve Best Day(s)
-    let bestDays = schedule.day || schedule.best_publish_day;
-    if (!bestDays && schedule.days) {
-      bestDays = Array.isArray(schedule.days)
-        ? schedule.days.join(', ')
-        : Object.values(schedule.days).join(', ');
-    }
-
-    // Resolve Time
-    const bestTime = schedule.time || schedule.best_publish_time_utc || schedule.time_utc;
-
-    // Resolve Format
-    const formatNote = schedule.format || schedule.schedule_note;
-
-    // Resolve Content Rotation / Mix
-    const contentMixRaw = strategy.content_rotation || strategy.content_mix || strategy.content_pillars || schedule.content_rotation || schedule.content_mix || schedule.content_pillars;
-    const contentMix = contentMixRaw
-      ? (Array.isArray(contentMixRaw) ? contentMixRaw : Object.values(contentMixRaw))
-      : null;
-
-    const channelDesc = strategy.channel_description || strategy.channelDescription;
-    const sampleTitle = strategy.sample_video_title || strategy.sampleVideoTitle;
-    const sampleDesc = strategy.sample_video_description || strategy.sampleVideoDescription;
+    const sampleTitle = getFuzzyKey(strategy, ['sample', 'title']);
+    const sampleDesc = getFuzzyKey(strategy, ['sample', 'desc']);
 
     return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
@@ -92,7 +89,7 @@ const renderOutput = (data: any) => {
             <div className="space-y-4">
               <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="text-sm text-slate-500">Frequency</span>
-                <span className="text-sm font-semibold text-slate-800">{schedule.frequency || 'N/A'}</span>
+                <span className="text-sm font-semibold text-slate-800">{freq || 'N/A'}</span>
               </div>
 
               {bestDays && (
